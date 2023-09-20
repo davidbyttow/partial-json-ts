@@ -1,6 +1,8 @@
-import { visit } from "jsonc-parser";
+import { visit, ParseErrorCode, printParseErrorCode } from "jsonc-parser";
 
 const abortError = {};
+
+const debugOutput = false;
 
 // parsePartialJson handles streaming LLM responses with partial and malformed JSON
 export const parsePartialJson = (input: string): Record<string, any> => {
@@ -9,33 +11,46 @@ export const parsePartialJson = (input: string): Record<string, any> => {
   let json: string = "";
   let lastToken: string | undefined;
 
+  const trace = (msg: string) => {
+    if (!debugOutput) {
+      return;
+    }
+    console.log(msg);
+  };
+
   try {
     visit(input, {
       onObjectBegin: () => {
         json += "{";
         stack.push("}");
         lastToken = "begin_object";
+        trace("begin_object");
       },
-      onObjectProperty: (_: string, offset: number, length: number) => {
+      onObjectProperty: (property: string, offset: number, length: number) => {
         json += input.substring(offset, offset + length);
         lastToken = "property";
+        trace(`property ${property}`);
       },
       onObjectEnd: () => {
         json += stack.pop();
         lastToken = "end_object";
+        trace("end_object");
       },
       onArrayBegin: (offset: number, length: number) => {
         json += "[";
         stack.push("]");
         lastToken = "begin_array";
+        trace("begin_array");
       },
       onArrayEnd: (offset: number, length: number) => {
         json += stack.pop();
         lastToken = "end_array";
+        trace("end_array");
       },
       onLiteralValue: (value: any, offset: number, length: number) => {
         json += input.substring(offset, offset + length);
         lastToken = "value";
+        trace(`value ${value}`);
       },
       onSeparator: (sep: string, offset: number, length: number) => {
         json += input.substring(offset, offset + length);
@@ -44,8 +59,16 @@ export const parsePartialJson = (input: string): Record<string, any> => {
         } else if (sep === ":") {
           lastToken = "colon";
         }
+        trace(`sep ${sep}`);
       },
-      onError: () => {
+      onError: (
+        error: ParseErrorCode,
+        offset: number,
+        length: number,
+        startLine: number,
+        startCharacter: number
+      ) => {
+        trace(`error ${printParseErrorCode(error)}`);
         throw abortError;
       },
     });
@@ -99,7 +122,6 @@ export const cleanJsonString = (input: string): string => {
   // handle missing quotes
   input = input
     .replace(/'(\w+)':/g, '"$1":')
-    .replace(/(?<=\s|\{)(\w+)(?=\s*:)/g, '"$1"')
     .replace(/\n.\s+[^\w\"](\w+):[^\w]/g, '"$1": ')
     .replace(/,\s*(]|})/g, "$1");
 
