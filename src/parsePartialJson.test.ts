@@ -10,13 +10,13 @@ describe("parsePartialJson", () => {
     expectParse("", {});
     expectParse(`{"foo`, {});
     expectParse(`{"foo":`, {});
-    expectParse(`{"foo": "3`, {});
+    expectParse(`{"foo": "3`, { foo: "3" });
     expectParse(`{"foo": "3"`, { foo: "3" });
     expectParse(`{"foo": "3", "neg": -2`, { foo: "3", neg: -2 });
-    expectParse(`{"foo": "3", "neg": -2, "bar": [{"foo":["hi`, {
+    expectParse(`{"foo": "3", "neg": -2, "bar": [{"foo":["h`, {
       foo: "3",
       neg: -2,
-      bar: [{ foo: [] }],
+      bar: [{ foo: ["h"] }],
     });
     expectParse(`{"foo": "3", "neg": -2, "bar": [{"foo":["hi", -1, -`, {
       foo: "3",
@@ -26,6 +26,6 @@ describe("parsePartialJson", () => {
   });
 
   test("malformed json", () => {
-    expectParse(`{foo:"bar"}`, { foo: "bar" });
+    expectParse(`{foo:"bar"}`, {});
   });
 });

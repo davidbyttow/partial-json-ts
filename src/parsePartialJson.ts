@@ -10,6 +10,7 @@ export const parsePartialJson = (input: string): Record<string, any> => {
   let stack: string[] = [];
   let json: string = "";
   let lastToken: string | undefined;
+  const inArray = () => stack.length > 0 && stack[stack.length - 1] === "]";
 
   const trace = (msg: string) => {
     if (!debugOutput) {
@@ -61,13 +62,14 @@ export const parsePartialJson = (input: string): Record<string, any> => {
         }
         trace(`sep ${sep}`);
       },
-      onError: (
-        error: ParseErrorCode,
-        offset: number,
-        length: number,
-        startLine: number,
-        startCharacter: number
-      ) => {
+      onError: (error: ParseErrorCode, offset: number, length: number) => {
+        if (
+          error == ParseErrorCode.UnexpectedEndOfString &&
+          (lastToken == "colon" || inArray())
+        ) {
+          json += input.substring(offset, offset + length) + '"';
+          lastToken = "value";
+        }
         trace(`error ${printParseErrorCode(error)}`);
         throw abortError;
       },
